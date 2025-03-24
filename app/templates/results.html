@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专利审查结果 - 专利实质审查系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+        }
+        .header {
+            background-color: #0d6efd;
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .results-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #eee;
+        }
+        .section:last-child {
+            border-bottom: none;
+        }
+        .section-title {
+            color: #0d6efd;
+            margin-bottom: 1rem;
+        }
+        .badge {
+            font-size: 0.9rem;
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        footer {
+            background-color: #343a40;
+            color: white;
+            padding: 1.5rem 0;
+            margin-top: 2rem;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .nav-tabs .nav-link {
+            color: #495057;
+        }
+        .nav-tabs .nav-link.active {
+            color: #0d6efd;
+            border-color: #dee2e6 #dee2e6 #fff;
+        }
+        .tab-content {
+            border: 1px solid #dee2e6;
+            border-top: none;
+            padding: 20px;
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header text-center">
+        <div class="container">
+            <h1>专利审查结果</h1>
+            <p class="lead">基于大模型的智能专利分析和审查平台</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="results-container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>审查结果: {{ filename }}</h2>
+                <a href="{{ url_for('index') }}" class="btn btn-outline-primary">返回首页</a>
+            </div>
+
+            {% if analysis.error %}
+                <div class="alert alert-danger">
+                    <h4 class="alert-heading">处理错误</h4>
+                    <p>{{ analysis.error }}</p>
+                </div>
+            {% else %}
+                <ul class="nav nav-tabs" id="resultTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="result-tab" data-bs-toggle="tab" data-bs-target="#result" type="button" role="tab" aria-controls="result" aria-selected="true">审查结果</button>
+                    </li>
+                    {% if analysis.reasoning_content %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="reasoning-tab" data-bs-toggle="tab" data-bs-target="#reasoning" type="button" role="tab" aria-controls="reasoning" aria-selected="false">推理过程</button>
+                    </li>
+                    {% endif %}
+                </ul>
+                <div class="tab-content" id="resultTabContent">
+                    <div class="tab-pane fade show active" id="result" role="tabpanel" aria-labelledby="result-tab">
+                        <div class="examination-result">
+                            {% if analysis.examination_result %}
+                                {{ analysis.examination_result | replace('\n', '<br>') | safe }}
+                            {% else %}
+                                <div class="alert alert-warning">无法获取审查结果。请稍后重试。</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if analysis.reasoning_content %}
+                    <div class="tab-pane fade" id="reasoning" role="tabpanel" aria-labelledby="reasoning-tab">
+                        <div class="reasoning-content">
+                            <h4 class="mb-3">模型推理过程</h4>
+                            <div class="bg-light p-3 rounded">
+                                {{ analysis.reasoning_content | replace('\n', '<br>') | safe }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="section mt-4">
+                    <h3 class="section-title">API 使用情况</h3>
+                    {% if analysis.usage %}
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">提示词 Tokens</h5>
+                                        <p class="card-text">{{ analysis.usage.prompt_tokens }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">完成 Tokens</h5>
+                                        <p class="card-text">{{ analysis.usage.completion_tokens }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">总 Tokens</h5>
+                                        <p class="card-text">{{ analysis.usage.total_tokens }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p>无使用情况数据可用</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <footer class="text-center">
+        <div class="container">
+            <p>© 2023 专利实质审查系统 - 基于人工智能的专利分析平台</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Format the examination result with proper styling
+        document.addEventListener('DOMContentLoaded', function() {
+            const resultElement = document.querySelector('.examination-result');
+            if (resultElement) {
+                const content = resultElement.innerHTML;
+                // Apply styling to section headers (lines ending with "：" or ":")
+                const formattedContent = content.replace(/(^|<br>)(.+?)(：|:)(<br>|$)/g, 
+                    '$1<h4 class="mt-4 mb-3 text-primary">$2$3</h4>$4');
+                resultElement.innerHTML = formattedContent;
+            }
+        });
+    </script>
+</body>
+</html> 

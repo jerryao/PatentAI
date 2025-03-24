@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专利实质审查系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+        }
+        .header {
+            background-color: #0d6efd;
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .upload-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .features {
+            margin-bottom: 2rem;
+        }
+        .feature-item {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #0d6efd;
+        }
+        footer {
+            background-color: #343a40;
+            color: white;
+            padding: 1.5rem 0;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header text-center">
+        <div class="container">
+            <h1>专利实质审查系统</h1>
+            <p class="lead">基于大模型的智能专利分析和审查平台</p>
+        </div>
+    </div>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="upload-container">
+            <h2 class="text-center mb-4">上传专利文档</h2>
+            <form id="patent-form" action="/upload" method="post" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="patent_file" class="form-label">选择专利文档文件（仅支持 .docx 格式）</label>
+                    <input class="form-control" type="file" id="patent_file" name="patent_file" accept=".docx" required>
+                </div>
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary btn-lg">提交审查</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="features">
+            <h2 class="text-center mb-4">系统功能</h2>
+            <div class="row">
+                <div class="col-md-4 feature-item">
+                    <div class="feature-icon">📋</div>
+                    <h3>新颖性分析</h3>
+                    <p>对专利文档进行深度分析，评估其是否与现有技术相同或相似。</p>
+                </div>
+                <div class="col-md-4 feature-item">
+                    <div class="feature-icon">💡</div>
+                    <h3>创造性分析</h3>
+                    <p>评估专利申请是否对本领域技术人员而言显而易见，是否体现创新性。</p>
+                </div>
+                <div class="col-md-4 feature-item">
+                    <div class="feature-icon">⚙️</div>
+                    <h3>实用性分析</h3>
+                    <p>判断专利技术是否能够实现并产生积极效果，是否具有实际应用价值。</p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 feature-item">
+                    <div class="feature-icon">📝</div>
+                    <h3>充分公开分析</h3>
+                    <p>检查说明书是否清楚、完整地公开了发明，是否满足充分公开要求。</p>
+                </div>
+                <div class="col-md-6 feature-item">
+                    <div class="feature-icon">📄</div>
+                    <h3>权利要求分析</h3>
+                    <p>评估权利要求是否清楚、简要，是否得到说明书支持。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center">
+        <div class="container">
+            <p>© 2023 专利实质审查系统 - 基于人工智能的专利分析平台</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 表单提交跟踪
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('patent-form');
+            
+            form.addEventListener('submit', function(e) {
+                console.log('表单提交事件触发');
+                const formData = new FormData(this);
+                const fileInput = document.getElementById('patent_file');
+                
+                console.log('选择的文件:', fileInput.files[0] ? fileInput.files[0].name : '无文件');
+                console.log('表单数据:', [...formData.entries()]);
+                
+                // 不阻止提交，让表单正常提交
+            });
+        });
+    </script>
+</body>
+</html> 
