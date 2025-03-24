@@ -104,19 +104,20 @@ def upload_patent():
                 original_filename = file.filename  # 保存原始文件名用于显示
                 return render_template('results.html', 
                                     filename=original_filename,
-                                    analysis=analysis_result)
+                                    analysis=analysis_result,
+                                    analysis_completed=True)
             except Exception as api_error:
                 logger.exception(f"API调用失败: {str(api_error)}")
                 flash(f'API analysis failed: {str(api_error)}', 'danger')
-                return redirect(url_for('index'))
+                return render_template('index.html', hide_loading=True)
         except Exception as e:
             logger.exception(f"处理文件时出错: {str(e)}")
             flash(f'Error processing file: {str(e)}', 'danger')
-            return redirect(url_for('index'))
+            return render_template('index.html', hide_loading=True)
     
     logger.error("不支持的文件格式")
     flash('Only DOCX files are allowed', 'danger')
-    return redirect(url_for('index'))
+    return render_template('index.html', hide_loading=True)
 
 @app.route('/api/analyze', methods=['POST'])
 def api_analyze_patent():
