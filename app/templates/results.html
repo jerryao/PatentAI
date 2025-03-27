@@ -142,6 +142,66 @@
             padding-bottom: 0.5rem;
             margin-bottom: 1.5rem;
         }
+        /* 权利要求树状图样式 */
+        .claims-tree-container {
+            background-color: #f8fffa;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        .claims-tree-title {
+            color: #28a745;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .claims-tree-content {
+            font-family: 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+        }
+        .claims-tree-content ul {
+            list-style-type: none;
+            padding-left: 20px;
+        }
+        .claims-tree-content li {
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .claims-tree-content li::before {
+            content: '';
+            position: absolute;
+            left: -20px;
+            top: 10px;
+            width: 15px;
+            height: 1px;
+            background-color: #28a745;
+        }
+        .claims-tree-content li::after {
+            content: '';
+            position: absolute;
+            left: -20px;
+            top: 0;
+            width: 1px;
+            height: 10px;
+            background-color: #28a745;
+        }
+        .claims-tree-content li:first-child::after {
+            display: none;
+        }
+        .claims-tree-content .claim-node {
+            padding: 5px 10px;
+            background-color: #fff;
+            border: 1px solid #e1e4e8;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+        .claims-tree-content .independent-claim {
+            font-weight: bold;
+            border-color: #28a745;
+            background-color: #f0fff4;
+        }
+        .claims-tree-content .dependent-claim {
+            color: #555;
+        }
         /* 加载动画 */
         .rendering-container {
             display: flex;
@@ -207,6 +267,12 @@
                                 <div id="searchQueryContainer" class="search-query-section mb-4" style="display: none;">
                                     <div class="search-query-title">专利检索式建议</div>
                                     <div id="searchQueryContent"></div>
+                                </div>
+                                
+                                <!-- 权利要求树状图提取区域 -->
+                                <div id="claimsTreeContainer" class="claims-tree-container mb-4" style="display: none;">
+                                    <div class="claims-tree-title">权利要求树状图</div>
+                                    <div id="claimsTreeContent" class="claims-tree-content"></div>
                                 </div>
                                 
                                 <!-- 分页导航 -->
@@ -375,6 +441,162 @@
                         }
                     }
                 }
+                
+                // 提取权利要求树状图
+                extractClaimsTree();
+            }
+            
+            // 权利要求树状图提取和渲染函数
+            function extractClaimsTree() {
+                const content = document.querySelector('.examination-result');
+                if (!content) return;
+                
+                // 查找权利要求树状图部分
+                const headers = content.querySelectorAll('h2, h3, h4');
+                let claimsTreeSection = null;
+                
+                for (const header of headers) {
+                    if (header.textContent.includes('权利要求树状图')) {
+                        claimsTreeSection = header;
+                        break;
+                    }
+                }
+                
+                if (claimsTreeSection) {
+                    let sectionContent = [];
+                    let currentElement = claimsTreeSection.nextElementSibling;
+                    
+                    // 收集权利要求树状图部分内容直到下一个标题
+                    while (currentElement && !['H2', 'H3', 'H4'].includes(currentElement.tagName)) {
+                        sectionContent.push(currentElement.outerHTML);
+                        currentElement = currentElement.nextElementSibling;
+                    }
+                    
+                    if (sectionContent.length > 0) {
+                        // 提取树状结构并转换为HTML
+                        const rawTreeContent = sectionContent.join('');
+                        const formattedTreeHTML = formatClaimsTree(rawTreeContent);
+                        
+                        // 填充权利要求树状图内容区域
+                        const claimsTreeContent = document.getElementById('claimsTreeContent');
+                        claimsTreeContent.innerHTML = formattedTreeHTML;
+                        document.getElementById('claimsTreeContainer').style.display = 'block';
+                        
+                        // 从原始内容中移除权利要求树状图部分，以避免重复显示
+                        if (claimsTreeSection.parentNode) {
+                            let element = claimsTreeSection;
+                            let nextElement = claimsTreeSection.nextElementSibling;
+                            
+                            // 移除标题
+                            element.parentNode.removeChild(element);
+                            
+                            // 移除内容直到下一个标题
+                            while (nextElement && !['H2', 'H3', 'H4'].includes(nextElement.tagName)) {
+                                let tempNext = nextElement.nextElementSibling;
+                                nextElement.parentNode.removeChild(nextElement);
+                                nextElement = tempNext;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 格式化权利要求树状图函数
+            function formatClaimsTree(rawContent) {
+                // 从Markdown列表转换为HTML树状结构
+                // 寻找类似 "- 权利要求1（独立权利要求）：[简要描述内容]" 的行
+                
+                // 首先移除代码块标记
+                let content = rawContent.replace(/```/g, '');
+                
+                // 检查是否已经是HTML（如果原始内容包含ul/li标签）
+                if (content.includes('<ul>') || content.includes('<li>')) {
+                    // 为已有的HTML添加适当的样式类
+                    content = content.replace(/<li>([^<]*权利要求\d+\s*（独立权利要求）[^<]*)<\/li>/g, 
+                                             '<li><div class="claim-node independent-claim">$1</div>');
+                    content = content.replace(/<li>([^<]*权利要求\d+\s*（从属于[^<]*)<\/li>/g, 
+                                             '<li><div class="claim-node dependent-claim">$1</div>');
+                    // 为没有匹配到的li添加基本样式
+                    content = content.replace(/<li>([^<]*)<\/li>/g, 
+                                             '<li><div class="claim-node">$1</div></li>');
+                    return content;
+                }
+                
+                // 将文本中的Markdown列表转换为HTML树
+                let lines = content.split('\n');
+                let htmlTree = '';
+                let currentIndentation = 0;
+                let indentStack = [0];
+                
+                for (let i = 0; i < lines.length; i++) {
+                    let line = lines[i].trim();
+                    if (!line || line === '&nbsp;') continue;
+                    
+                    // 计算当前行的缩进级别
+                    let indentation = 0;
+                    let originalLine = lines[i];
+                    while (originalLine.startsWith('  ')) {
+                        indentation++;
+                        originalLine = originalLine.substring(2);
+                    }
+                    
+                    // 从行中提取权利要求信息
+                    const match = line.match(/^-\s+(.+)$/);
+                    if (!match) continue;
+                    
+                    let claimText = match[1];
+                    let nodeClass = 'claim-node';
+                    
+                    // 判断是独立权利要求还是从属权利要求
+                    if (claimText.includes('（独立权利要求）') || claimText.includes('(独立权利要求)')) {
+                        nodeClass += ' independent-claim';
+                    } else if (claimText.includes('（从属于') || claimText.includes('(从属于')) {
+                        nodeClass += ' dependent-claim';
+                    }
+                    
+                    // 处理缩进变化，生成嵌套的HTML结构
+                    if (indentation > currentIndentation) {
+                        // 缩进增加，创建新的子列表
+                        htmlTree += '<ul>';
+                        indentStack.push(indentation);
+                    } else if (indentation < currentIndentation) {
+                        // 缩进减少，关闭当前子列表
+                        while (indentStack[indentStack.length - 1] > indentation) {
+                            htmlTree += '</ul>';
+                            indentStack.pop();
+                        }
+                    }
+                    
+                    // 添加当前节点
+                    htmlTree += `<li><div class="${nodeClass}">${claimText}</div>`;
+                    
+                    // 检查下一行的缩进情况，如果下一行不是更深的缩进，就关闭当前li
+                    if (i === lines.length - 1 || 
+                        !lines[i+1].trim().startsWith('-') || 
+                        getIndentation(lines[i+1]) <= indentation) {
+                        htmlTree += '</li>';
+                    }
+                    
+                    currentIndentation = indentation;
+                }
+                
+                // 关闭所有剩余的列表标签
+                while (indentStack.length > 1) {
+                    htmlTree += '</ul></li>';
+                    indentStack.pop();
+                }
+                
+                return htmlTree;
+            }
+            
+            // 辅助函数：获取行的缩进级别
+            function getIndentation(line) {
+                let indentation = 0;
+                while (line.startsWith('  ')) {
+                    indentation++;
+                    line = line.substring(2);
+                }
+                return indentation;
             }
             
             // 内容分页函数
