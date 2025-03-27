@@ -3,9 +3,6 @@ import json
 import logging
 from typing import Dict, List, Any, Optional
 
-# 导入专利检索模块
-from app.api.patent_search import PatentSearchClient, compare_patents, extract_patent_keywords
-
 # 设置日志记录器
 logger = logging.getLogger(__name__)
 
@@ -30,9 +27,6 @@ class SiliconFlowClient:
             "Authorization": f"Bearer {api_key}"
         }
         logger.debug(f"SiliconFlow客户端初始化: API基础URL={api_base}")
-        
-        # 初始化专利检索客户端 - 目前使用模拟数据
-        self.patent_search = PatentSearchClient(use_mock=True)
     
     def chat_completions(self, messages: List[Dict[str, str]], 
                         model: str = "deepseek-ai/DeepSeek-R1",
@@ -145,28 +139,118 @@ class SiliconFlowClient:
             logger.warning(f"专利文本过长({len(patent_text)}字符)，将被截断")
             patent_text = patent_text[:30000] + "...(文本过长，已截断)"
         
-        # 1. 首先搜索相关专利
-        logger.debug("提取专利关键词进行相关性检索")
-        keywords = extract_patent_keywords(patent_text)
-        keywords_text = " ".join(keywords[:5])  # 取前5个关键词
-        
-        logger.debug(f"专利关键词: {keywords_text}")
-        similar_patents = self.patent_search.search_patents(keywords_text, limit=5)
-        logger.debug(f"找到{len(similar_patents)}个相关专利")
-        
-        # 2. 分析专利与现有技术的相似性
-        patent_comparison = compare_patents(patent_text, similar_patents)
-        
-        # 3. 构建包含真实参考数据的系统提示
+        # Prepare the system message with instructions for patent examination
         system_message = {
             "role": "system",
-            "content": self._build_system_prompt_with_references(patent_comparison)
+            "content": """您是一位资深的专利审查员，精通《专利法》、《专利法实施细则》(2024年1月20日生效的最新版本)及审查指南，拥有丰富的专利审查经验，对各技术领域都有深入理解。请您按照官方专利局实质审查标准，严格、客观、全面地对提交的专利申请进行实质审查。
+
+## 审查内容
+请围绕以下方面进行详细审查，并针对每个方面提供明确的法律和技术依据：
+
+### 1. 新颖性（专利法第22条第2款）
+- 详细比对该专利与现有技术的区别点
+- 明确指出哪些技术特征是新的，哪些已为公知
+- 评估是否存在抵触申请
+- 判断是否满足新颖性要求
+
+### 2. 创造性（专利法第22条第3款）
+- 确定最接近的现有技术
+- 分析区别技术特征
+- 评估技术问题与技术效果
+- 判断技术方案是否对本领域技术人员具有显著的进步
+- 考虑技术启示和技术偏见因素
+
+### 3. 实用性（专利法第22条第4款）
+- 评估技术方案是否能够实施
+- 分析是否能产生积极的技术效果
+- 判断是否有工业应用价值
+
+### 4. 说明书充分公开（专利法第26条第3款）
+- 评估说明书公开是否清楚、完整
+- 检查是否包含实施该发明所需的必要技术信息
+- 判断本领域技术人员是否能够实现该发明
+- 检查实施例的完整性与代表性
+
+### 5. 权利要求书评估（专利法第26条第4款）
+- 检查权利要求是否清楚、简要
+- 评估权利要求是否得到说明书支持
+- 分析权利要求的保护范围是否适当
+- 检查独立权利要求和从属权利要求的格式与内容
+- 评估权利要求间的关系是否合理
+
+### 6. 单一性检查（专利法第31条第1款）
+- 评估申请是否包含多项发明
+- 分析这些发明是否属于一个总的发明构思
+
+### 7. 其他法定不授予专利权的情形（专利法第5条、第25条）
+- 评估是否涉及法律、社会公德或公共利益
+- 检查是否属于科学发现、智力活动规则等不授予专利权的情形
+- 检查是否违反专利法实施细则第十一条关于诚实信用原则的规定
+
+## 输出格式
+请按照以下结构提供详细的审查意见，每个部分必须有充分的技术和法律分析：
+
+**1. 专利概述**
+- 清晰准确地总结专利的技术方案和技术领域
+- 概述其技术问题和所述解决方案
+
+**2. 新颖性分析**
+- 详细比较与现有技术的异同
+- 提供具体证据和法律依据
+- 明确结论：是否具有新颖性
+
+**3. 创造性分析**
+- 指出最接近的现有技术和区别特征
+- 分析技术效果和技术启示
+- 提供详细的三步法分析
+- 明确结论：是否具有创造性
+
+**4. 实用性分析**
+- 评估技术方案的可实施性
+- 分析工业应用价值和积极效果
+- 明确结论：是否具有实用性
+
+**5. 说明书充分公开分析**
+- 评估技术信息的完整性
+- 分析实施例的有效性
+- 指出具体不足之处（如有）
+- 明确结论：是否满足充分公开要求
+
+**6. 权利要求分析**
+- 逐条分析每个权利要求
+- 评估清晰性、简要性和支持性
+- 分析保护范围的合理性
+- 指出具体缺陷（如有）
+- 明确结论：权利要求是否合格
+
+**7. 单一性分析**
+- 评估是否符合单一性要求
+- 如有多项发明，分析它们之间的关系
+
+**8. 专利检索式建议**
+- 基于专利的技术方案，提供专业的专利检索式
+- 提供中文和英文两种格式的检索式
+- 包含IPC分类号、关键词组合、截词符等专业检索要素
+- 对每个检索式给出简要解释
+- 针对不同检索目的(新颖性、创造性)提供不同检索策略
+
+**9. 审查结论**
+- 基于以上分析，给出明确的综合评估意见
+- 列出所有不符合专利法及实施细则要求的具体问题
+
+**10. 修改建议**
+- 提供具体、可操作的修改建议
+- 针对权利要求书的修改指导
+- 针对说明书的完善建议
+- 其他程序性建议
+
+请确保审查意见严格、专业、客观，完全基于专利法及相关法规。不要仅给出简单的"是"或"否"的判断，而是提供详细的分析过程和法律依据。对专利申请的每个方面都应给予充分关注，确保审查全面、严谨。根据专利法实施细则第十六条，审查工作应贯彻党和国家知识产权战略部署，支持全面创新，促进创新型国家建设。"""
         }
         
-        # 4. 构建用户消息
+        # Prepare the user message with the patent text
         user_message = {
             "role": "user",
-            "content": f"请对以下专利申请进行审查，提供实质审查意见：\n\n{patent_text}"
+            "content": f"请对以下专利申请进行严格的实质审查，提供详细、专业的审查意见，必须符合专利局官方审查标准：\n\n{patent_text}"
         }
         
         logger.debug("开始调用API")
@@ -188,8 +272,7 @@ class SiliconFlowClient:
                     "examination_result": response["choices"][0]["message"]["content"] if "choices" in response else None,
                     "reasoning_content": response["choices"][0]["message"].get("reasoning_content", None) if "choices" in response else None,
                     "usage": response.get("usage", {}),
-                    "error": None,
-                    "patent_comparison": patent_comparison  # 添加专利比较结果
+                    "error": None
                 }
                 logger.debug("API响应处理成功")
                 return result
@@ -201,7 +284,6 @@ class SiliconFlowClient:
                     "examination_result": None,
                     "reasoning_content": None,
                     "usage": response.get("usage", {}),
-                    "patent_comparison": patent_comparison,  # 即使API失败，仍然返回专利比较
                     "error": f"处理API响应时出错: {str(e)}"
                 }
                 return result
@@ -214,80 +296,5 @@ class SiliconFlowClient:
                 "examination_result": f"专利分析失败，原因: {str(e)}",
                 "reasoning_content": None,
                 "usage": {},
-                "patent_comparison": patent_comparison,  # 即使API失败，仍然返回专利比较
                 "error": str(e)
-            }
-    
-    def _build_system_prompt_with_references(self, patent_comparison: Dict[str, Any]) -> str:
-        """构建包含参考专利的系统提示"""
-        system_prompt = """您是一位专业的专利审查员，精通专利法和各领域技术知识。
-请对提交的专利申请进行实质审查，重点评估以下方面：
-1. 专利的新颖性 - 是否与现有技术相同
-2. 创造性 - 是否对本领域技术人员而言显而易见
-3. 实用性 - 是否能够实现并产生积极效果
-4. 充分公开 - 说明书是否清楚、完整地公开了发明
-5. 权利要求书 - 是否清楚、简要，是否得到说明书支持
-
-请按以下格式提供审查意见：
-- 专利概述：对专利技术方案的简要总结
-- 新颖性分析：评估是否具有新颖性
-- 创造性分析：评估是否具有创造性
-- 实用性分析：评估是否具有实用性
-- 充分公开分析：评估说明书是否充分公开
-- 权利要求分析：评估权利要求是否清楚、简要，是否得到说明书支持
-- 审查结论：给出综合评估意见
-- 修改建议：对权利要求书、说明书等提出具体修改建议
-
-以下是通过专利数据库检索到的相关现有技术参考，请在审查过程中详细参考这些信息，特别是在新颖性和创造性分析中：
-"""
-
-        # 添加关键词信息
-        keywords = patent_comparison.get("keywords", [])
-        if keywords:
-            system_prompt += f"\n【检索关键词】: {', '.join(keywords)}\n"
-        
-        # 添加现有技术参考
-        similar_patents = patent_comparison.get("similar_patents", [])
-        if similar_patents:
-            system_prompt += "\n【相关现有技术文献】:\n"
-            for i, patent in enumerate(similar_patents, 1):
-                # 提取专利信息
-                title = patent.get("title", "无标题")
-                pub_num = patent.get("publication_number", "无公开号")
-                pub_date = patent.get("publication_date", "无公开日期")
-                assignee = patent.get("assignee", "无申请人")
-                abstract = patent.get("abstract", "无摘要")
-                
-                # 获取相似度分析（如果有）
-                similarity_details = None
-                for detail in patent_comparison.get("novelty_analysis", {}).get("details", []):
-                    if detail.get("patent_number") == pub_num:
-                        similarity_details = detail
-                        break
-                
-                system_prompt += f"\n{i}. 【专利】: {title} ({pub_num})\n"
-                system_prompt += f"   【公开日期】: {pub_date}\n"
-                system_prompt += f"   【申请人】: {assignee}\n"
-                system_prompt += f"   【摘要】: {abstract}\n"
-                
-                if similarity_details:
-                    system_prompt += f"   【相似度评估】: {similarity_details.get('similarity_comment', '')}\n"
-                    overlap_keywords = similarity_details.get("overlap_keywords", [])
-                    if overlap_keywords:
-                        system_prompt += f"   【重叠关键词】: {', '.join(overlap_keywords)}\n"
-        
-        # 添加新颖性总体评分
-        novelty_score = patent_comparison.get("novelty_analysis", {}).get("score")
-        if novelty_score is not None:
-            system_prompt += f"\n【新颖性初步评分】: {novelty_score}/10 (自动评估，仅供参考)\n"
-        
-        system_prompt += """
-【重要提示】：
-1. 请基于以上现有技术参考进行分析，而不是依赖您的模型知识中可能已过时或不准确的信息
-2. 请严格按照专利法的标准评估新颖性和创造性，给出客观专业的审查意见
-3. 在引用上述现有技术文献时，请清晰标注文献编号
-4. 如果专利申请确实具有新颖性和创造性，请明确指出与现有技术的区别
-
-请严格、公正地审查，基于专利法相关规定提供专业意见。"""
-
-        return system_prompt 
+            } 

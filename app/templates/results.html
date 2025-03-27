@@ -101,6 +101,47 @@
         .markdown-body table tr:nth-child(even) {
             background-color: #f9f9f9;
         }
+        /* 专利检索式样式 */
+        .search-query-section {
+            background-color: #f0f8ff;
+            border-left: 4px solid #0d6efd;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        .search-query-title {
+            color: #0d6efd;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .search-query-item {
+            font-family: monospace;
+            background-color: #fff;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 3px;
+            border: 1px solid #e1e4e8;
+        }
+        /* 分页内容样式 */
+        .content-page {
+            display: none;
+        }
+        .content-page.active {
+            display: block;
+        }
+        .pagination .page-item.active .page-link {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        .pagination .page-link {
+            color: #0d6efd;
+        }
+        .page-title {
+            color: #0d6efd;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
         /* 加载动画 */
         .rendering-container {
             display: flex;
@@ -120,81 +161,6 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
-        }
-        /* 专利检索结果样式 */
-        .patent-card {
-            border: 1px solid #e0e0e0;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            transition: all 0.3s ease;
-        }
-        .patent-card:hover {
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .patent-header {
-            background-color: #f5f5f5;
-            padding: 10px 15px;
-            border-bottom: 1px solid #e0e0e0;
-            font-weight: bold;
-        }
-        .patent-body {
-            padding: 15px;
-        }
-        .patent-footer {
-            background-color: #f9f9f9;
-            padding: 10px 15px;
-            border-top: 1px solid #e0e0e0;
-            font-size: 0.9rem;
-        }
-        .similarity-high {
-            color: #dc3545;
-        }
-        .similarity-medium {
-            color: #fd7e14;
-        }
-        .similarity-low {
-            color: #28a745;
-        }
-        .novelty-score {
-            font-size: 1.5rem;
-            font-weight: bold;
-            text-align: center;
-            padding: 10px;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            line-height: 40px;
-            margin: 0 auto;
-            border: 2px solid;
-        }
-        .score-high {
-            color: #28a745;
-            border-color: #28a745;
-            background-color: rgba(40, 167, 69, 0.1);
-        }
-        .score-medium {
-            color: #fd7e14;
-            border-color: #fd7e14;
-            background-color: rgba(253, 126, 20, 0.1);
-        }
-        .score-low {
-            color: #dc3545;
-            border-color: #dc3545;
-            background-color: rgba(220, 53, 69, 0.1);
-        }
-        .keyword-badge {
-            display: inline-block;
-            background-color: #e9ecef;
-            color: #495057;
-            padding: 0.25rem 0.5rem;
-            margin-right: 0.5rem;
-            margin-bottom: 0.5rem;
-            border-radius: 0.25rem;
-            font-size: 0.875rem;
-        }
-        .overlap-keyword {
-            background-color: #ffeeba;
-            color: #856404;
         }
     </style>
 </head>
@@ -223,9 +189,6 @@
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="result-tab" data-bs-toggle="tab" data-bs-target="#result" type="button" role="tab" aria-controls="result" aria-selected="true">审查结果</button>
                     </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="related-patents-tab" data-bs-toggle="tab" data-bs-target="#related-patents" type="button" role="tab" aria-controls="related-patents" aria-selected="false">相关专利</button>
-                    </li>
                     {% if analysis.reasoning_content %}
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="reasoning-tab" data-bs-toggle="tab" data-bs-target="#reasoning" type="button" role="tab" aria-controls="reasoning" aria-selected="false">推理过程</button>
@@ -240,115 +203,28 @@
                         </div>
                         <div class="examination-result markdown-body" style="display: none;">
                             {% if analysis.examination_result %}
-                                <div id="mdContent">{{ analysis.examination_result }}</div>
+                                <!-- 专利检索式提取区域 - 始终显示在最上方 -->
+                                <div id="searchQueryContainer" class="search-query-section mb-4" style="display: none;">
+                                    <div class="search-query-title">专利检索式建议</div>
+                                    <div id="searchQueryContent"></div>
+                                </div>
+                                
+                                <!-- 分页导航 -->
+                                <nav class="mb-4">
+                                    <ul class="pagination justify-content-center" id="resultsPagination">
+                                        <!-- 分页按钮会通过JS动态添加 -->
+                                    </ul>
+                                </nav>
+                                
+                                <!-- 分页内容区域 -->
+                                <div id="paginatedContent">
+                                    <div id="mdContent">{{ analysis.examination_result }}</div>
+                                </div>
                             {% else %}
                                 <div class="alert alert-warning">无法获取审查结果。请稍后重试。</div>
                             {% endif %}
                         </div>
                     </div>
-                    
-                    <div class="tab-pane fade" id="related-patents" role="tabpanel" aria-labelledby="related-patents-tab">
-                        {% if analysis.patent_comparison %}
-                            <div class="my-4">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h4>专利检索结果与对比分析</h4>
-                                    
-                                    {% if analysis.patent_comparison.novelty_analysis and analysis.patent_comparison.novelty_analysis.score is defined %}
-                                        {% set novelty_score = analysis.patent_comparison.novelty_analysis.score %}
-                                        <div class="text-center">
-                                            <h5 class="mb-2">新颖性评分</h5>
-                                            <div class="novelty-score 
-                                                {% if novelty_score >= 7 %}score-high
-                                                {% elif novelty_score >= 4 %}score-medium
-                                                {% else %}score-low{% endif %}">
-                                                {{ novelty_score }}/10
-                                            </div>
-                                        </div>
-                                    {% endif %}
-                                </div>
-                                
-                                {% if analysis.patent_comparison.keywords %}
-                                <div class="mb-4">
-                                    <h5>检索关键词</h5>
-                                    <div>
-                                        {% for keyword in analysis.patent_comparison.keywords %}
-                                            <span class="keyword-badge">{{ keyword }}</span>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                                {% endif %}
-                                
-                                {% if analysis.patent_comparison.similar_patents %}
-                                <h5>检索到的相关专利 ({{ analysis.patent_comparison.similar_patents|length }})</h5>
-                                <div class="mt-3">
-                                    {% for patent in analysis.patent_comparison.similar_patents %}
-                                        <div class="patent-card">
-                                            <div class="patent-header">
-                                                {{ patent.title }}
-                                            </div>
-                                            <div class="patent-body">
-                                                <div class="row">
-                                                    <div class="col-md-8">
-                                                        <p><strong>专利号:</strong> {{ patent.publication_number }}</p>
-                                                        <p><strong>公开日:</strong> {{ patent.publication_date }}</p>
-                                                        <p><strong>申请人:</strong> {{ patent.assignee }}</p>
-                                                        <p><strong>摘要:</strong> {{ patent.abstract }}</p>
-                                                        
-                                                        {% set detail = None %}
-                                                        {% for d in analysis.patent_comparison.novelty_analysis.details %}
-                                                            {% if d.patent_number == patent.publication_number %}
-                                                                {% set detail = d %}
-                                                            {% endif %}
-                                                        {% endfor %}
-                                                        
-                                                        {% if detail and detail.overlap_keywords %}
-                                                        <div class="mt-2">
-                                                            <strong>重叠关键词:</strong>
-                                                            <div>
-                                                                {% for keyword in detail.overlap_keywords %}
-                                                                    <span class="keyword-badge overlap-keyword">{{ keyword }}</span>
-                                                                {% endfor %}
-                                                            </div>
-                                                        </div>
-                                                        {% endif %}
-                                                    </div>
-                                                    
-                                                    <div class="col-md-4">
-                                                        {% if detail %}
-                                                            <div class="card mb-3">
-                                                                <div class="card-header">相似度分析</div>
-                                                                <div class="card-body">
-                                                                    <h5 class="card-title 
-                                                                        {% if detail.similarity_score > 0.7 %}similarity-high
-                                                                        {% elif detail.similarity_score > 0.4 %}similarity-medium
-                                                                        {% else %}similarity-low{% endif %}">
-                                                                        相似度: {{ (detail.similarity_score * 100)|int }}%
-                                                                    </h5>
-                                                                    <p class="card-text">{{ detail.similarity_comment }}</p>
-                                                                </div>
-                                                            </div>
-                                                        {% endif %}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="patent-footer">
-                                                <a href="https://patents.google.com/patent/{{ patent.publication_number }}" 
-                                                   target="_blank" class="btn btn-sm btn-outline-primary">
-                                                    查看完整专利
-                                                </a>
-                                            </div>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                                {% else %}
-                                <div class="alert alert-info">未找到相关专利</div>
-                                {% endif %}
-                            </div>
-                        {% else %}
-                            <div class="alert alert-warning">未进行专利检索或检索失败</div>
-                        {% endif %}
-                    </div>
-                    
                     {% if analysis.reasoning_content %}
                     <div class="tab-pane fade" id="reasoning" role="tabpanel" aria-labelledby="reasoning-tab">
                         <div class="rendering-container" id="reasoningRenderingIndicator">
@@ -412,7 +288,6 @@
     <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // 渲染Markdown格式的审查结果
         document.addEventListener('DOMContentLoaded', function() {
             // 设置Marked选项
             marked.setOptions({
@@ -422,67 +297,213 @@
                 langPrefix: 'language-'
             });
             
-            // 处理审查结果
-            const resultElement = document.getElementById('mdContent');
-            const resultContainer = document.querySelector('.examination-result');
-            const renderingIndicator = document.getElementById('renderingIndicator');
+            // 渲染Markdown内容
+            setTimeout(function() {
+                const content = document.getElementById('mdContent');
+                if (content) {
+                    const rawMarkdown = content.textContent;
+                    content.innerHTML = marked.parse(rawMarkdown);
+                    
+                    // 处理完成后隐藏加载动画，显示内容
+                    document.getElementById('renderingIndicator').style.display = 'none';
+                    document.querySelector('.examination-result').style.display = 'block';
+                    
+                    // 提取并高亮专利检索式部分
+                    extractSearchQueries();
+                    
+                    // 实现内容分页
+                    paginateContent();
+                }
+                
+                const reasoningContent = document.getElementById('mdReasoning');
+                if (reasoningContent) {
+                    const rawReasoning = reasoningContent.textContent;
+                    reasoningContent.innerHTML = marked.parse(rawReasoning);
+                    
+                    // 处理完成后隐藏加载动画，显示内容
+                    document.getElementById('reasoningRenderingIndicator').style.display = 'none';
+                    document.querySelector('.reasoning-content').style.display = 'block';
+                }
+            }, 500);
             
-            if (resultElement) {
-                try {
-                    // 获取原始内容
-                    let content = resultElement.textContent;
+            // 专利检索式提取函数
+            function extractSearchQueries() {
+                const content = document.querySelector('.examination-result');
+                if (!content) return;
+                
+                // 查找专利检索式部分
+                const headers = content.querySelectorAll('h2, h3, h4');
+                let searchQuerySection = null;
+                
+                for (const header of headers) {
+                    if (header.textContent.includes('专利检索式') || header.textContent.includes('检索式建议')) {
+                        searchQuerySection = header;
+                        break;
+                    }
+                }
+                
+                if (searchQuerySection) {
+                    let sectionContent = [];
+                    let currentElement = searchQuerySection.nextElementSibling;
                     
-                    // 检测中文冒号段落作为标题
-                    content = content.replace(/^(.+?)(：|:)$/gm, '### $1$2');
+                    // 收集检索式部分内容直到下一个标题
+                    while (currentElement && !['H2', 'H3', 'H4'].includes(currentElement.tagName)) {
+                        sectionContent.push(currentElement.outerHTML);
+                        currentElement = currentElement.nextElementSibling;
+                    }
                     
-                    // 转换为Markdown
-                    const htmlContent = marked.parse(content);
-                    
-                    // 更新内容
-                    resultElement.innerHTML = htmlContent;
-                    
-                    // 显示渲染后的内容
-                    setTimeout(() => {
-                        renderingIndicator.style.display = 'none';
-                        resultContainer.style.display = 'block';
-                    }, 500);
-                } catch (e) {
-                    console.error('渲染Markdown失败', e);
-                    renderingIndicator.style.display = 'none';
-                    resultContainer.style.display = 'block';
+                    if (sectionContent.length > 0) {
+                        // 填充检索式内容区域
+                        const searchQueryContent = document.getElementById('searchQueryContent');
+                        searchQueryContent.innerHTML = sectionContent.join('');
+                        document.getElementById('searchQueryContainer').style.display = 'block';
+                        
+                        // 从原始内容中移除检索式部分，以避免重复显示
+                        if (searchQuerySection.parentNode) {
+                            let element = searchQuerySection;
+                            let nextElement = searchQuerySection.nextElementSibling;
+                            
+                            // 移除标题
+                            element.parentNode.removeChild(element);
+                            
+                            // 移除内容直到下一个标题
+                            while (nextElement && !['H2', 'H3', 'H4'].includes(nextElement.tagName)) {
+                                let tempNext = nextElement.nextElementSibling;
+                                nextElement.parentNode.removeChild(nextElement);
+                                nextElement = tempNext;
+                            }
+                        }
+                    }
                 }
             }
             
-            // 处理推理过程
-            const reasoningElement = document.getElementById('mdReasoning');
-            const reasoningContainer = document.querySelector('.reasoning-content');
-            const reasoningRenderingIndicator = document.getElementById('reasoningRenderingIndicator');
-            
-            if (reasoningElement) {
-                try {
-                    // 获取原始内容
-                    let content = reasoningElement.textContent;
+            // 内容分页函数
+            function paginateContent() {
+                const contentContainer = document.getElementById('paginatedContent');
+                const mainContent = document.getElementById('mdContent');
+                if (!contentContainer || !mainContent) return;
+                
+                // 查找所有的主要部分标题 (h2)
+                const sections = mainContent.querySelectorAll('h2');
+                if (sections.length <= 1) return; // 如果没有足够的部分，不进行分页
+                
+                // 创建页面容器
+                const pages = [];
+                let currentPageContent = document.createElement('div');
+                currentPageContent.className = 'content-page';
+                currentPageContent.id = 'page-0';
+                pages.push(currentPageContent);
+                
+                // 专利概述放在第一页
+                const overview = sections[0];
+                if (overview) {
+                    currentPageContent.appendChild(overview.cloneNode(true));
+                    let nextElement = overview.nextElementSibling;
                     
-                    // 转换为Markdown
-                    const htmlContent = marked.parse(content);
-                    
-                    // 更新内容
-                    reasoningElement.innerHTML = htmlContent;
-                    
-                    // 显示渲染后的内容
-                    setTimeout(() => {
-                        if (reasoningRenderingIndicator) {
-                            reasoningRenderingIndicator.style.display = 'none';
-                        }
-                        reasoningContainer.style.display = 'block';
-                    }, 500);
-                } catch (e) {
-                    console.error('渲染推理过程失败', e);
-                    if (reasoningRenderingIndicator) {
-                        reasoningRenderingIndicator.style.display = 'none';
+                    while (nextElement && nextElement.tagName !== 'H2') {
+                        currentPageContent.appendChild(nextElement.cloneNode(true));
+                        nextElement = nextElement.nextElementSibling;
                     }
-                    reasoningContainer.style.display = 'block';
                 }
+                
+                // 其他部分创建新页面
+                for (let i = 1; i < sections.length; i++) {
+                    currentPageContent = document.createElement('div');
+                    currentPageContent.className = 'content-page';
+                    currentPageContent.id = `page-${i}`;
+                    pages.push(currentPageContent);
+                    
+                    const section = sections[i];
+                    currentPageContent.appendChild(section.cloneNode(true));
+                    
+                    let nextElement = section.nextElementSibling;
+                    while (nextElement && nextElement.tagName !== 'H2') {
+                        currentPageContent.appendChild(nextElement.cloneNode(true));
+                        nextElement = nextElement.nextElementSibling;
+                    }
+                }
+                
+                // 清空原容器并添加分页内容
+                contentContainer.innerHTML = '';
+                pages.forEach(page => {
+                    contentContainer.appendChild(page);
+                });
+                
+                // 标记第一页为活动页
+                document.getElementById('page-0').classList.add('active');
+                
+                // 创建分页导航
+                const pagination = document.getElementById('resultsPagination');
+                if (pagination) {
+                    // 上一页按钮
+                    const prevButton = document.createElement('li');
+                    prevButton.className = 'page-item';
+                    prevButton.innerHTML = '<a class="page-link" href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a>';
+                    prevButton.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const activePage = document.querySelector('.content-page.active');
+                        const activeIndex = parseInt(activePage.id.split('-')[1]);
+                        if (activeIndex > 0) {
+                            changePage(activeIndex - 1);
+                        }
+                    });
+                    pagination.appendChild(prevButton);
+                    
+                    // 页码按钮
+                    for (let i = 0; i < pages.length; i++) {
+                        const pageButton = document.createElement('li');
+                        pageButton.className = 'page-item' + (i === 0 ? ' active' : '');
+                        pageButton.innerHTML = `<a class="page-link" href="#">${i + 1}</a>`;
+                        pageButton.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            changePage(i);
+                        });
+                        pagination.appendChild(pageButton);
+                    }
+                    
+                    // 下一页按钮
+                    const nextButton = document.createElement('li');
+                    nextButton.className = 'page-item';
+                    nextButton.innerHTML = '<a class="page-link" href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a>';
+                    nextButton.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const activePage = document.querySelector('.content-page.active');
+                        const activeIndex = parseInt(activePage.id.split('-')[1]);
+                        if (activeIndex < pages.length - 1) {
+                            changePage(activeIndex + 1);
+                        }
+                    });
+                    pagination.appendChild(nextButton);
+                }
+            }
+            
+            // 切换页面函数
+            function changePage(pageIndex) {
+                // 隐藏所有页面
+                document.querySelectorAll('.content-page').forEach(page => {
+                    page.classList.remove('active');
+                });
+                
+                // 显示选中的页面
+                document.getElementById(`page-${pageIndex}`).classList.add('active');
+                
+                // 更新分页按钮状态
+                document.querySelectorAll('#resultsPagination .page-item').forEach((item, index) => {
+                    // 跳过第一个和最后一个按钮（上一页和下一页）
+                    if (index > 0 && index <= document.querySelectorAll('.content-page').length) {
+                        if (index - 1 === pageIndex) {
+                            item.classList.add('active');
+                        } else {
+                            item.classList.remove('active');
+                        }
+                    }
+                });
+                
+                // 滚动到页面顶部
+                window.scrollTo({
+                    top: document.querySelector('.examination-result').offsetTop - 20,
+                    behavior: 'smooth'
+                });
             }
         });
     </script>
